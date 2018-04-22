@@ -2,10 +2,22 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#define _TREE_(A, B, C, T) tree = calloc(1, sizeof(struct Node));\
+tree->val = calloc(4, sizeof(char));\
+tree->array = calloc(2, sizeof(struct Node *));\
+tree->val[0] = (A);\
+tree->val[1] = (B);\
+tree->val[2] = (C);\
+tree->val[3] = '\0';\
+tree->type = (T);\
+tree->array[0] = lf;\
+tree->array[1] = rg;\
+return tree;
 
 char * s;
 int p;
 int semicolon_counter;
+int check_bracket;
 
 float ax;
 float bx;
@@ -42,6 +54,24 @@ void Dot_print(struct Node * root, FILE * stream, int lab, int * lab_count);
 void tree_png(struct Node * root, FILE * stream, int lab, int * lab_count);
 void digraph(FILE * stream, int * lab_count);
 
+struct Node * CreateNode(int fella, struct Node * lf, struct Node * rg);
+
+enum Token {
+	NUMBER,
+	VAR,
+	PLUS,
+	MINUS,
+	MULT,
+	DIVIDE,
+	POW,
+	LOG,
+	SIN,
+	COS,
+	SH,
+	CH,
+	ATG
+};
+
 int main()
 {
 	struct Node * tree = NULL;
@@ -65,7 +95,7 @@ struct Node * G(char * str)
 {
 	s = str;
 	struct Node * root = calloc(1, sizeof(struct Node));
-	root->array = calloc(10, sizeof(struct Node *));
+	root->array = calloc(100, sizeof(struct Node *));
 	root->val = calloc(2, sizeof(char));
 	root->val[0] = 'G';
 	root->val[1] = '\0';
@@ -77,7 +107,12 @@ struct Node * G(char * str)
 		else if((s[p] == 'm' && s[p+1] == 'u' && s[p+2] == 'l' && s[p+3] == ';') || (s[p] == 'a' && s[p+1] == 'd' && s[p+2] == 'd'))
 		{
 			root->array[counter] = GetF();
-		} 
+		}
+		else if (s[p] == 'a' || s[p] == 'b' || s[p] == 'c' || s[p] == 'd')
+		{
+			if(s[p+1] == 'x')
+				root->array[counter] = GetR_E();
+		}
 		else
 		{
 			printf("%d:Error: unknown type name:\n%s \n", semicolon_counter, arr_out(s + p));
@@ -148,12 +183,36 @@ struct Node * GetF()
 	return root;
 }
 
+struct Node * GetR_E()
+{
+	struct Node * root = calloc(1, sizeof(struct Node));
+	root->array = calloc(2, sizeof(struct Node *));
+	root->array[0] = GetR();
+	root->val = calloc(2, sizeof(char));
+	if(s[p] != '=')
+	{
+		printf("%d: There is must be an appropriation:%s\n", semicolon_counter, arr_out(s+p));
+		exit(106); 
+	}
+	p++;
+	if(s[p] == ' ')
+		p++;
+	root->val[0] = '=';
+	root->val[1] = '\0';
+	root->array[1] = GetE();
+	return root;
+}
+
 struct Node * GetE()
 {
 	struct Node * root_left = NULL;
-	 //root_left = GetT();
-	 if(!root_left) assert(0);
 	int counter = 0;
+	 root_left = GetT();
+	 if(!root_left)
+	 {
+		 printf("%d: You must have an expression after the appropriation:%s\n", semicolon_counter, arr_out(s+p));
+		 exit(107);
+	 }
 	struct Node * root = NULL;
 	if( s[p] == '+' || s[p] == '-')
 	{
@@ -167,12 +226,12 @@ struct Node * GetE()
 		}
 		if( operator == '+') 
 		{
-			//root = CreateNode(PLUS, root_left, root_right);
+			root = CreateNode(PLUS, root_left, root_right);
 			counter++;
 		}
 		else if( operator == '-')
 		{
-			//root = CreateNode(MINUS, root_left, root_right);
+			root = CreateNode(MINUS, root_left, root_right);
 			counter++;
 		}
 		assert(counter);
@@ -180,6 +239,104 @@ struct Node * GetE()
 	else
 	{
 		root = root_left;
+	}
+	return root;
+}
+
+struct Node * GetT()
+{
+	struct Node * root_left = NULL;
+	root_left = GetP();
+	if(!root_left) assert(0);
+	int counter = 0;
+	struct Node * root = NULL;
+	if( s[p] == '*' || s[p] == '/')
+	{
+		char operator = s[p];
+		p++;
+		struct Node * root_right = GetP();
+		if(!root_right)
+		{
+			printf("I need a divider or a second factor\n");
+			abort();
+		}
+		if( operator == '*') 
+		{
+			if(!check_bracket)
+			{
+				printf("Try to use a such kind of expression: '(EXPRESSION*EXPRESSION)'\n");
+				abort();
+			}
+			root = CreateNode(MULT, root_left, root_right);
+			counter++;
+		}
+		else if( operator == '/')
+		{
+			if(!check_bracket)
+			{
+				printf("Try to use a such kind of expression: '(EXPRESSION/EXPRESSION)'\n");
+				abort();
+			}
+			root = CreateNode(DIVIDE, root_left, root_right);
+			counter++;
+		}
+		assert(counter);
+	}
+	else
+	{
+		root = root_left;
+	}
+	return root;
+}
+
+struct Node * GetP()
+{
+	if(s[p] == '(')
+	{
+		p++;
+		check_bracket++;
+		struct Node * root = GetE();
+		if(s[p] != ')')
+		{
+			printf("Each opening bracket must have an ending bracket\n");
+			abort();
+		}
+		check_bracket--;
+		p++;
+		return root;
+	}
+	else if (s[p] == 'a' || s[p] == 'b' || s[p] == 'c' || s[p] == 'd')
+	{
+		if(s[p+1] == 'x')
+			return GetR();
+	}
+	else
+		return GetN();
+	assert(0);
+}
+
+struct Node * GetN()
+{
+	struct Node * root = calloc(1, sizeof(struct Node));
+	root->val = calloc(10, sizeof(struct Node));
+	root->type = NUMBER;
+	int counter = 0;
+	while('0' <= s[p] && s[p] <= '9')
+	{
+		if(counter == 8)
+		{
+			printf("You have too big number in initial function\n");
+			abort();
+		}
+		root->val[counter] = s[p];
+		p++;
+		counter++;
+	}
+	root->val[++counter] = '\0';
+	if(counter == 1) 
+	{
+		printf("%d:There is not a number in GetN():%s\n", semicolon_counter, arr_out(s+p));
+		abort();
 	}
 	return root;
 }
@@ -270,4 +427,40 @@ char * arr_out(char * array)
 		;
 	array[counter] = '\0';
 	return array;
+}
+
+struct Node * CreateNode(int fella, struct Node * lf, struct Node * rg)
+{
+	switch(fella)
+	{
+		struct Node * tree = NULL;
+		case NUMBER:
+			_TREE_('0', '\0', '\0', NUMBER)
+		case VAR:
+			_TREE_('1', '\0', '\0', NUMBER)
+		case PLUS:
+			_TREE_('+', '\0', '\0', PLUS)
+		case MINUS:
+			_TREE_('-', '\0', '\0', MINUS)
+		case MULT:
+			_TREE_('*', '\0', '\0', MULT)
+		case DIVIDE:
+			_TREE_('/', '\0', '\0', DIVIDE)
+		case POW:
+			_TREE_('^', '\0', '\0', POW)
+		case LOG:
+			_TREE_('l', 'o', 'g', LOG)
+		case COS:
+			_TREE_('c', 'o', 's', COS)
+		case SIN:
+			_TREE_('s', 'i', 'n', SIN)
+		case CH:
+			_TREE_('c', 'h', '\0', CH)
+		case SH:
+			_TREE_('s', 'h', '\0', SH)
+		default: 
+			printf("Wrong Type in CreateNode\n");
+			exit(12);
+	}
+	return NULL;
 }

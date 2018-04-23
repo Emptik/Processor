@@ -55,6 +55,7 @@ void tree_png(struct Node * root, FILE * stream, int lab, int * lab_count);
 void digraph(FILE * stream, int * lab_count);
 
 struct Node * CreateNode(int fella, struct Node * lf, struct Node * rg);
+struct Node * Destroy(struct Node * root);
 
 enum Token {
 	NUMBER,
@@ -87,6 +88,10 @@ int main()
 	arr_fill(str, f_in);
 	tree = G(str);
 	Dot_print(tree, f_out, lab, lab_count);
+	tree = Destroy(tree);
+	fclose(f_in);
+	fclose(f_out);
+	free(lab_count);
 	system("dot -Tpng Tree.dot -o Tree.png");
 	return 0;
 }
@@ -143,8 +148,6 @@ struct Node * GetF_R()
 	struct Node * root = calloc(1, sizeof(struct Node));
 	root->val = calloc(10, sizeof(char));
 	root->array = calloc(1, sizeof(struct Node *));
-	root->array[0] = calloc(1, sizeof(struct Node));
-	root->array[0]->val = calloc(5, sizeof(char));
 	int counter = 0;
 	for(; s[p] != ' '; counter++)
 	{
@@ -463,4 +466,29 @@ struct Node * CreateNode(int fella, struct Node * lf, struct Node * rg)
 			exit(12);
 	}
 	return NULL;
+}
+
+struct Node * Destroy(struct Node * root)
+{
+	if(root)
+	{
+		if(root->array)
+		{
+			int counter = 0;
+			for(; root->array[counter] != NULL; counter++)
+			{
+				root->array[counter] = Destroy(root->array[counter]);
+			}
+			free(root->array);
+		}
+		if(root->val) 
+			free(root->val);
+		else
+		{
+			printf("There is a tree without a root->val");
+			exit(27);
+		}
+		free(root);
+	}
+	return root;
 }
